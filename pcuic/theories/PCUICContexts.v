@@ -22,34 +22,6 @@ Derive Signature for context_subst.
 
 Hint Rewrite Nat.add_0_r : len.
 
-Lemma ctx_length_ind (P : context -> Type) (p0 : P [])
-  (pS : forall d Γ, (forall Γ', #|Γ'| <= #|Γ|  -> P Γ') -> P (d :: Γ)) 
-  Γ : P Γ.
-Proof.
-  generalize (le_n #|Γ|).
-  generalize #|Γ| at 2.
-  induction n in Γ |- *.
-  destruct Γ; [|simpl; intros; elimtype False; lia].
-  intros. apply p0.
-  intros.
-  destruct Γ; simpl in *.
-  apply p0. apply pS. intros. apply IHn. simpl. lia.
-Qed.
-
-Lemma ctx_length_rev_ind (P : context -> Type) (p0 : P [])
-  (pS : forall d Γ, (forall Γ', #|Γ'| <= #|Γ|  -> P Γ') -> P (Γ ++ [d])) 
-  Γ : P Γ.
-Proof.
-  generalize (le_n #|Γ|).
-  generalize #|Γ| at 2.
-  induction n in Γ |- *.
-  destruct Γ using rev_ind; [|simpl; rewrite app_length /=; intros; elimtype False; try lia].
-  intros. apply p0.
-  destruct Γ using rev_ind; simpl in *; rewrite ?app_length /=; intros Hlen.
-  intros. apply p0.
-  apply pS. intros. apply IHn. simpl. lia.
-Qed.
-
 Lemma smash_context_subst_empty s n Γ : 
   smash_context [] (subst_context s n Γ) =
   subst_context s n (smash_context [] Γ).
@@ -87,107 +59,6 @@ Lemma assumption_context_length ctx : assumption_context ctx ->
 Proof. induction 1; simpl; auto. Qed.
 Hint Resolve assumption_context_length : pcuic.
 
-Lemma context_subst_length2 {ctx args s} : context_subst ctx args s -> #|args| = context_assumptions ctx.
-Proof.
-  induction 1; simpl; auto.
-  rewrite app_length; simpl; lia.
-Qed.
-
-Lemma context_subst_fun {ctx args s s'} : context_subst ctx args s -> context_subst ctx args s' -> s = s'.
-Proof.
-  induction 1 in s' |- *; intros H'; depelim H'; auto.
-  eapply app_inj_tail in H. intuition subst.
-  now specialize (IHX _ H').
-  now specialize (IHX _ H').
-Qed.
-
-Lemma context_subst_fun' {ctx args args' s s'} : context_subst ctx args s -> context_subst ctx args' s' -> #|args| = #|args'|.
-Proof.
-  induction 1 as [ | ? ? ? ? ? ? ? IHX | ? ? ? ? ? ? ? IHX ] in args', s' |- *; intros H'; depelim H'; auto.
-  now rewrite !app_length; specialize (IHX _ _ H').
-  now specialize (IHX _ _ H').
-Qed.
-
-Hint Constructors context_subst : core.
-
-Lemma context_subst_app {ctx ctx' args s} : 
-  context_subst (ctx ++ ctx') args s -> 
-  context_subst (subst_context (skipn #|ctx| s) 0 ctx) (skipn (context_assumptions ctx') args) (firstn #|ctx| s) *
-  context_subst ctx' (firstn (context_assumptions ctx') args) (skipn #|ctx| s).
-Proof.
-  revert ctx' args s.
-  induction ctx; intros ctx' args s; simpl.
-  - intros Hc. rewrite !skipn_0.
-    rewrite - !(context_subst_length2 Hc).
-    now rewrite firstn_all skipn_all.
-  - intros Hc.
-    depelim Hc. simpl.
-    rewrite skipn_S.
-    specialize (IHctx _ _ _ Hc) as [IHctx IHctx'].
-    pose proof (context_subst_length2 IHctx).
-    pose proof (context_subst_length2 IHctx').
-    pose proof (context_subst_length2 Hc).
-    rewrite context_assumptions_app in H1. 
-    rewrite firstn_app. rewrite (firstn_0 [a0]).
-    rewrite firstn_length_le in H0. lia. lia.
-    rewrite app_nil_r. split; auto.
-    rewrite skipn_app_le. lia.
-    rewrite subst_context_snoc.
-    now constructor.
-
-    specialize (IHctx _ _ _ Hc).
-    split; try now rewrite skipn_S.
-    pose proof (context_subst_length2 Hc).
-    rewrite context_assumptions_app in H.
-    destruct IHctx as [IHctx _].
-    pose proof (context_subst_length IHctx).
-    rewrite subst_context_snoc. rewrite !skipn_S.
-    rewrite /subst_decl /map_decl /= Nat.add_0_r.
-    rewrite -{4}(firstn_skipn #|ctx| s0).
-    rewrite subst_app_simpl. simpl.
-    rewrite subst_context_length in H0. rewrite -H0.
-    now constructor.
-Qed.
-
-Lemma make_context_subst_rec_spec ctx args s tele args' s' :
-  context_subst ctx args s ->
-  (make_context_subst tele args' s = Some s') <~>
-  context_subst (List.rev tele ++ ctx) (args ++ args') s'.
-Proof.
-  induction tele in ctx, args, s, args', s' |- *.
-  - move=> /= Hc. case: args'.
-    split.  move => [= <-].
-    now rewrite app_nil_r.
-    rewrite app_nil_r.
-    move/context_subst_fun => Hs. now specialize (Hs _ Hc).
-    intros. split; try discriminate.
-    intros H2. pose proof (context_subst_fun' Hc H2).
-    rewrite app_length /= in H. now lia.
-  - move=> Hc /=. case: a => [na [body|] ty] /=.
-    * specialize (IHtele (vdef na body ty :: ctx) args (subst0 s body :: s) args' s').
-       move=> /=. rewrite <- app_assoc.
-       now forward IHtele by (constructor; auto).
-    * destruct args' as [|a args'].
-      split; [congruence | ]. intros Hc'.
-      pose proof (context_subst_length2 Hc').
-      rewrite !context_assumptions_app ?app_length ?List.rev_length /= Nat.add_0_r in H.
-      pose proof (context_subst_length2 Hc). lia.
-      
-      specialize (IHtele (vass na ty :: ctx) (args ++ [a]) (a :: s) args' s').
-      forward IHtele. econstructor. auto.
-      rewrite -app_assoc. rewrite -app_comm_cons /=.
-      rewrite -app_assoc in IHtele. apply IHtele.
-Qed.
-
-Lemma make_context_subst_spec_inv : forall (tele : list context_decl) (args s' : list term),
-  context_subst (List.rev tele) args s' ->
-  make_context_subst tele args [] = Some s'.
-Proof.
-  intros. assert (H:=make_context_subst_rec_spec [] [] [] tele args s').
-  forward H by constructor.
-  rewrite app_nil_r in H. destruct H.
-  simpl in *. auto.
-Qed.
 
 Lemma map_subst_instance_constr_to_extended_list_k u ctx k :
   map (subst_instance_constr u) (to_extended_list_k ctx k)
@@ -719,39 +590,4 @@ Lemma assumption_context_fold f Γ :
 Proof. 
   induction 1; simpl. constructor. rewrite fold_context_snoc0.
   now constructor.
-Qed.
-
-Lemma map_subst_closedn (s : list term) (k : nat) l :
-  forallb (closedn k) l -> map (subst s k) l = l.
-Proof.
-  induction l; simpl; auto.
-  move/andP=> [cla cll]. rewrite IHl //.
-  now rewrite subst_closedn.
-Qed.
-
-Lemma closedn_extended_subst_gen Γ k k' : 
-  closedn_ctx k Γ -> 
-  forallb (closedn (k' + k + context_assumptions Γ)) (extended_subst Γ k').
-Proof.
-  induction Γ as [|[? [] ?] ?] in k, k' |- *; simpl; auto;
-  rewrite ?closedn_ctx_cons;
-   move/andP => [clΓ /andP[clb clt]].
-  - rewrite IHΓ //.
-    epose proof (closedn_subst (extended_subst Γ k') (k' + k + context_assumptions Γ) 0).
-    autorewrite with len in H. rewrite andb_true_r.
-    eapply H; auto.
-    replace (k' + k + context_assumptions Γ + #|Γ|)
-    with (k + #|Γ| + (context_assumptions Γ + k')) by lia.
-    eapply closedn_lift. eapply clb.
-  - apply andb_and. split.
-    * apply Nat.ltb_lt; lia.
-    * specialize (IHΓ k (S k') clΓ).
-      red. rewrite -IHΓ. f_equal. f_equal. lia.
-Qed.
-
-Lemma closedn_extended_subst Γ : 
-  closed_ctx Γ -> 
-  forallb (closedn (context_assumptions Γ)) (extended_subst Γ 0).
-Proof.
-  intros clΓ. now apply (closedn_extended_subst_gen Γ 0 0).
 Qed.

@@ -181,46 +181,6 @@ Section Spines.
     now eapply Reflect.eqb_eq in eqhd.
   Qed.
 
-  Lemma expand_lets_nil t : expand_lets [] t = t.
-  Proof. by rewrite /expand_lets /expand_lets_k /= subst_empty lift0_id. Qed.
-
-  Lemma context_assumptions_context {Γ} :
-    assumption_context Γ -> 
-    context_assumptions Γ = #|Γ|.
-  Proof.
-    induction 1; simpl; auto.
-  Qed.
-
-  Lemma subst_context_lift_id Γ k n : n <= k -> subst_context [tRel n] k (lift_context (S n) (S k) Γ) = lift_context n k Γ.
-  Proof.
-    intros nk.
-    rewrite subst_context_alt !lift_context_alt.
-    rewrite mapi_compose.
-    apply mapi_ext; len.
-    intros n' [? [?|] ?]; unfold lift_decl, subst_decl, map_decl; simpl.
-    intros. 
-    now rewrite !Nat.add_succ_r !subst_reli_lift_id //.
-    f_equal.
-    now rewrite !Nat.add_succ_r !subst_reli_lift_id //.
-  Qed.
-  
-  Lemma expand_lets_assumption_context Γ Δ :
-    assumption_context Γ -> expand_lets_ctx Γ Δ = Δ.
-  Proof.
-    induction Γ using rev_ind.
-    - by rewrite /expand_lets_ctx /expand_lets_k_ctx /= lift0_context subst0_context.
-    - intros ass. eapply assumption_context_app in ass as [assl assx].
-      depelim assx.
-      rewrite /expand_lets_ctx /expand_lets_k_ctx; len; simpl.
-      rewrite extended_subst_app /=. 
-      rewrite subst_app_context /=; len.
-      rewrite subst_context_lift_id // lift0_context.
-      rewrite (context_assumptions_context assl). simpl.
-      rewrite !Nat.add_1_r subst_context_lift_id //.
-      rewrite /expand_lets_ctx /expand_lets_k_ctx in IHΓ.
-      rewrite (context_assumptions_context assl) in IHΓ .
-      now simpl in IHΓ.
-  Qed.
 
   Lemma cumul_it_mkProd_or_LetIn_smash Γ Δ T : 
     Σ ;;; Γ |- it_mkProd_or_LetIn (smash_context [] Δ) (expand_lets Δ T) <= it_mkProd_or_LetIn Δ T.
@@ -764,7 +724,7 @@ Section Normalization.
     - eapply PCUICValidity.inversion_mkApps in Ht as (? & ? & ?); auto.
       eapply inversion_Ind in t as (? & ? & ? & decli & ? & ?); auto.
       eapply PCUICSpine.typing_spine_strengthen in t0; eauto.
-      pose proof (on_declared_inductive wfΣ decli) as [onind oib].
+      pose proof (on_declared_inductive wfΣ as decli) [onind oib].
       rewrite oib.(ind_arity_eq) in t0.
       rewrite !subst_instance_constr_it_mkProd_or_LetIn in t0.
       eapply typing_spine_arity_mkApps_Ind in t0; eauto.
@@ -985,7 +945,7 @@ Section WeakNormalization.
     eapply inversion_mkApps in typ as (?&?&?); auto.
     eapply inversion_Ind in t as (?&?&?&decl&?&?); auto.
     eapply PCUICSpine.typing_spine_strengthen in t0; eauto.
-    pose proof (PCUICWeakeningEnv.on_declared_inductive wfΣ decl) as [onind oib].
+    pose proof (PCUICWeakeningEnv.on_declared_inductive wfΣ as decl) [onind oib].
     rewrite oib.(ind_arity_eq) in t0.
     rewrite !subst_instance_constr_it_mkProd_or_LetIn in t0.
     eapply typing_spine_arity_mkApps_Ind in t0; eauto.

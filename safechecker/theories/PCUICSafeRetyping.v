@@ -168,7 +168,7 @@ Section TypeOf.
     Qed.
   
   Equations lookup_ind_decl ind : typing_result
-        ({decl & {body & declared_inductive (fst Σ) decl ind body}}) :=
+        ({decl & {body & declared_inductive (fst Σ) ind decl body}}) :=
   lookup_ind_decl ind with inspect (lookup_env (fst Σ) ind.(inductive_mind)) :=
     { | exist (Some (InductiveDecl decl)) look with inspect (nth_error decl.(ind_bodies) ind.(inductive_ind)) :=
       { | exist (Some body) eqnth => Checked (decl; body; _);
@@ -182,7 +182,7 @@ Section TypeOf.
   Defined.
 
   Lemma lookup_ind_decl_complete ind e : lookup_ind_decl ind = TypeError e -> 
-    ((∑ mdecl idecl, declared_inductive Σ mdecl ind idecl) -> False).
+    ((∑ mdecl idecl, declared_inductive Σ ind mdecl idecl) -> False).
   Proof.
     apply_funelim (lookup_ind_decl ind).
     1-2:intros * _ her [mdecl [idecl [declm decli]]];
@@ -396,7 +396,7 @@ Section TypeOf.
       exists mdecl, idecl. split; auto.
 
     - destruct d as [decl [body decli]].
-      assert (declared_constructor Σ decl body (ind, k) cdecl) as declc.
+      assert (declared_constructor Σ (ind, k) decl body cdecl) as declc.
       { red; intuition auto. }
       eapply inversion_Construct in HT; auto.
       dependent elimination HT as [(mdecl; idecl; cdecl; (wf'', (declc', (rest, cum))))].
@@ -449,7 +449,7 @@ Section TypeOf.
         eapply (isType_mkApps_Ind w decli) in X0 as [parsubst [argsubst [[sppars spargs] cu]]]; pcuic.
         pose proof (PCUICContexts.context_subst_length2 sppars).
         len in H.
-        set (oib := (on_declared_inductive w decli).2) in *.
+        set (oib := (on_declared_inductive w in decli).2) *.
         eapply type_Cumul'. econstructor; eauto.
         assert (Σ ;;; Γ |- c : mkApps (tInd ind u) (firstn (ind_npars mdecl) args ++  skipn (ind_npars mdecl) l)).
         { eapply type_Cumul'. eauto.
@@ -494,7 +494,7 @@ Section TypeOf.
         eapply (build_case_predicate_type_spec _ _ _ _ _ _ _ _ oib) in bcp as [parsubst' [csubst ->]]; auto.
         pose proof (PCUICContexts.context_subst_fun sppars csubst). subst parsubst'.
         unshelve epose proof (isType_mkApps_Ind w decli _ vt) as [parsubst' [argsubst' [[spars' spargs'] ?]]]; pcuic.
-        change (ind_indices (on_declared_inductive w decli).2) with (ind_indices oib) in spargs'.
+        change (ind_indices (on_declared_inductive w with decli).2) (ind_indices oib) in spargs'.
         subst oib; destruct on_declared_inductive as [onmind oib].
         rewrite onmind.(onNpars) in H.
         pose proof (firstn_length_le_inv _ _ H).
@@ -561,7 +561,7 @@ Section TypeOf.
       eapply cumul_Ind_Ind_inv in X0 as [[eqi' Ru'] cl']; eauto.
       destruct d as [decl [body decli]].
       pose proof (declared_inductive_inj (proj1 declp) decli) as [-> ->].
-      assert (declared_projection Σ mdecl idecl (ind, n, k) pdecl).
+      assert (declared_projection Σ (ind, n, k) mdecl idecl pdecl).
       { red; intuition eauto. simpl. eapply declp. }
       pose proof (@Reflect.eqb_eq inductive _). apply H0 in eqi'. subst ind.
       destruct (declared_projection_inj declp H) as [_ [_ ->]].

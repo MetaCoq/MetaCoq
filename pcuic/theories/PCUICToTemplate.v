@@ -31,8 +31,9 @@ Fixpoint trans (t : PCUICAst.term) : Ast.term :=
   | PCUICAst.tProd na A B => tProd na (trans A) (trans B)
   | PCUICAst.tLetIn na b t b' => tLetIn na (trans b) (trans t) (trans b')
   | PCUICAst.tCase ind p c brs =>
-    let brs' := List.map (on_snd trans) brs in
-    tCase (ind, Relevant) (trans p) (trans c) brs'
+    let p' := map_predicate id trans trans p in
+    let brs' := List.map (map_branch trans) brs in
+    tCase ind p' (trans c) brs'
   | PCUICAst.tProj p c => tProj p (trans c)
   | PCUICAst.tFix mfix idx =>
     let mfix' := List.map (map_def trans trans) mfix in
@@ -51,15 +52,21 @@ Definition trans_decl (d : PCUICAst.context_decl) :=
 
 Definition trans_local Γ := List.map trans_decl Γ.
 
-Definition trans_ctor : (ident × PCUICAst.term) × nat -> (ident × term) × nat 
-  := fun '(x, y, z) => (x, trans y, z).
-
+Definition trans_constructor_body (d : PCUICAst.constructor_body) :=
+  {| cstr_name := d.(PCUICAst.cstr_name); 
+     cstr_args := trans_local d.(PCUICAst.cstr_args);
+     cstr_indices := map trans d.(PCUICAst.cstr_indices); 
+     cstr_type := trans d.(PCUICAst.cstr_type);
+     cstr_arity := d.(PCUICAst.cstr_arity) |}.
+      
 Definition trans_one_ind_body (d : PCUICAst.one_inductive_body) :=
   {| ind_name := d.(PCUICAst.ind_name);
      ind_relevance := d.(PCUICAst.ind_relevance);
+     ind_indices := trans_local d.(PCUICAst.ind_indices);
      ind_type := trans d.(PCUICAst.ind_type);
+     ind_sort := d.(PCUICAst.ind_sort);
      ind_kelim := d.(PCUICAst.ind_kelim);
-     ind_ctors := List.map trans_ctor d.(PCUICAst.ind_ctors);
+     ind_ctors := List.map trans_constructor_body d.(PCUICAst.ind_ctors);
      ind_projs := List.map (fun '(x, y) => (x, trans y)) d.(PCUICAst.ind_projs) |}.
 
 Definition trans_constant_body bd :=

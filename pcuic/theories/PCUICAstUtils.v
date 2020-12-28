@@ -28,9 +28,9 @@ Fixpoint string_of_term (t : term) :=
   | tInd i u => "Ind(" ^ string_of_inductive i ^ "," ^ string_of_universe_instance u ^ ")"
   | tConstruct i n u => "Construct(" ^ string_of_inductive i ^ "," ^ string_of_nat n ^ ","
                                     ^ string_of_universe_instance u ^ ")"
-  | tCase (ind, i) t p brs =>
-    "Case(" ^ string_of_inductive ind ^ "," ^ string_of_nat i ^ "," ^ string_of_term t ^ ","
-            ^ string_of_term p ^ "," ^ string_of_list (fun b => string_of_term (snd b)) brs ^ ")"
+  | tCase ci p t brs =>
+    "Case(" ^ string_of_case_info ci ^ "," ^ string_of_term t ^ ","
+            ^ string_of_predicate string_of_term p ^ "," ^ string_of_list (string_of_branch string_of_term) brs ^ ")"
   | tProj (ind, i, k) c =>
     "Proj(" ^ string_of_inductive ind ^ "," ^ string_of_nat i ^ "," ^ string_of_nat k ^ ","
             ^ string_of_term c ^ ")"
@@ -38,6 +38,30 @@ Fixpoint string_of_term (t : term) :=
   | tCoFix l n => "CoFix(" ^ (string_of_list (string_of_def string_of_term) l) ^ "," ^ string_of_nat n ^ ")"
   | tPrim i => "Int(" ^ string_of_prim string_of_term i ^ ")"
   end.
+
+Ltac change_Sk :=
+  repeat match goal with
+    | |- context [S (?x + ?y)] => progress change (S (x + y)) with (S x + y)
+    | |- context [#|?l| + (?x + ?y)] => progress replace (#|l| + (x + y)) with ((#|l| + x) + y) by now rewrite Nat.add_assoc
+  end.
+
+Hint Extern 10 => progress unfold map_branches_k : all.
+
+Ltac solve_all_one :=
+  try lazymatch goal with
+  | H: tCasePredProp _ _ _ |- _ => destruct H
+  end;
+  unfold tCaseBrsProp, tFixProp in *;
+  try apply map_predicate_eq_spec;
+  try apply map_predicate_id_spec;
+  repeat toAll; try All_map; try close_Forall;
+  change_Sk; auto with all;
+  intuition eauto 4 with all.
+
+Ltac solve_all := repeat (progress solve_all_one).
+Hint Extern 10 => rewrite !map_branch_map_branch : all.
+Hint Extern 10 => rewrite !map_predicate_map_predicate : all.
+  
 
 Lemma lookup_env_nil c s : lookup_env [] c = Some s -> False.
 Proof.
@@ -156,9 +180,9 @@ Proof.
               mind_entry_consnames := _;
               mind_entry_lc := _;
             |}.
-    refine (List.map (fun x => fst (fst x)) ind_ctors).
+    refine (List.map (fun x => cstr_name x) ind_ctors).
     refine (List.map (fun x => remove_arity decl.(ind_npars)
-                                                (snd (fst x))) ind_ctors).
+                                                (cstr_type x)) ind_ctors).
 Defined.
 
 Fixpoint decompose_prod_assum (Γ : context) (t : term) : context * term :=
@@ -278,38 +302,6 @@ Proof.
   now rewrite reln_alt_eq Nat.add_1_r.
   simpl. rewrite reln_alt_eq.
   now rewrite -app_assoc !app_nil_r Nat.add_1_r.
-Qed.
-
-Lemma context_assumptions_length_bound Γ : context_assumptions Γ <= #|Γ|.
-Proof.
-  induction Γ; simpl; auto. destruct a as [? [?|] ?]; simpl; auto.
-  lia.
-Qed.
-
-Lemma context_assumptions_map f Γ : context_assumptions (map_context f Γ) = context_assumptions Γ.
-Proof.
-  induction Γ as [|[? [?|] ?] ?]; simpl; auto.
-Qed.
-
-Lemma context_assumptions_mapi f Γ : context_assumptions (mapi (fun i => map_decl (f i)) Γ) = 
-  context_assumptions Γ.
-Proof.
-  rewrite /mapi; generalize 0.
-  induction Γ; simpl; intros; eauto.
-  destruct a as [? [b|] ?]; simpl; auto.
-Qed.
-
-Hint Rewrite context_assumptions_map context_assumptions_mapi : len.
-
-Lemma compose_map_decl f g x : map_decl f (map_decl g x) = map_decl (f ∘ g) x.
-Proof.
-  destruct x as [? [?|] ?]; reflexivity.
-Qed.
-
-Lemma map_decl_ext f g x : (forall x, f x = g x) -> map_decl f x = map_decl g x.
-Proof.
-  intros H; destruct x as [? [?|] ?]; rewrite /map_decl /=; f_equal; auto.
-  now rewrite (H t).
 Qed.
 
 Ltac merge_All :=

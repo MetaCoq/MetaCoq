@@ -31,8 +31,9 @@ Fixpoint trans (t : Ast.term) : term :=
   | Ast.tCast c kind t => tApp (tLambda (mkBindAnn nAnon Relevant) (trans t) (tRel 0)) (trans c)
   | Ast.tLetIn na b t b' => tLetIn na (trans b) (trans t) (trans b')
   | Ast.tCase ind p c brs =>
-    let brs' := List.map (on_snd trans) brs in
-    tCase (fst ind) (trans p) (trans c) brs'
+    let p' := map_predicate id trans trans p in
+    let brs' := List.map (map_branch trans) brs in
+    tCase ind p' (trans c) brs'
   | Ast.tProj p c => tProj p (trans c)
   | Ast.tFix mfix idx =>
     let mfix' := List.map (map_def trans trans) mfix in
@@ -52,12 +53,21 @@ Definition trans_decl (d : Ast.context_decl) :=
 
 Definition trans_local Γ := List.map trans_decl Γ.
 
+Definition trans_constructor_body (d : Ast.constructor_body) :=
+  {| cstr_name := d.(Ast.cstr_name); 
+     cstr_args := trans_local d.(Ast.cstr_args);
+     cstr_indices := map trans d.(Ast.cstr_indices); 
+     cstr_type := trans d.(Ast.cstr_type);
+     cstr_arity := d.(Ast.cstr_arity) |}.
+
 Definition trans_one_ind_body (d : Ast.one_inductive_body) :=
   {| ind_name := d.(Ast.ind_name);
      ind_relevance := d.(Ast.ind_relevance);
+     ind_indices := trans_local d.(Ast.ind_indices);
+     ind_sort := d.(Ast.ind_sort);
      ind_type := trans d.(Ast.ind_type);
      ind_kelim := d.(Ast.ind_kelim);
-     ind_ctors := List.map (fun '(x, y, z) => (x, trans y, z)) d.(Ast.ind_ctors);
+     ind_ctors := List.map trans_constructor_body d.(Ast.ind_ctors);
      ind_projs := List.map (fun '(x, y) => (x, trans y)) d.(Ast.ind_projs) |}.
 
 Definition trans_constant_body bd :=

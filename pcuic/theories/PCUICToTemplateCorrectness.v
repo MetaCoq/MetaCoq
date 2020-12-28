@@ -186,9 +186,9 @@ Proof.
     now apply trans_constraintSet_in.
 Qed.
 
-Lemma trans_declared_inductive Σ mdecl ind idecl:
-  ST.declared_inductive Σ mdecl ind idecl ->
-  TT.declared_inductive (trans_global_decls Σ) (trans_minductive_body mdecl) ind (trans_one_ind_body idecl).
+Lemma trans_declared_inductive Σ ind mdecl idecl:
+  ST.declared_inductive Σ ind mdecl idecl ->
+  TT.declared_inductive (trans_global_decls Σ) (trans_minductive_body mdecl) (trans_one_ind_body ind idecl).
 Proof.
   intros [].
   split.
@@ -401,9 +401,9 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma trans_declared_projection Σ mdecl idecl p pdecl :
-  ST.declared_projection Σ.1 mdecl idecl p pdecl ->
-  TT.declared_projection (trans_global Σ).1 (trans_minductive_body mdecl) (trans_one_ind_body idecl) p (on_snd trans pdecl).
+Lemma trans_declared_projection Σ p mdecl idecl pdecl :
+  ST.declared_projection Σ.1 p mdecl idecl pdecl ->
+  TT.declared_projection (trans_global Σ).1 p (trans_minductive_body mdecl) (trans_one_ind_body idecl) (on_snd trans pdecl).
 Proof.
   intros (?&?&?).
   split;[|split].

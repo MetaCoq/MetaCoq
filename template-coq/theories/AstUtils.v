@@ -1,7 +1,7 @@
 (* For primitive integers and floats  *)
 From Coq Require Numbers.Cyclic.Int63.Int63 Floats.PrimFloat.
 (* Distributed under the terms of the MIT license. *)
-From MetaCoq.Template Require Import utils BasicAst Ast.
+From MetaCoq.Template Require Import utils BasicAst Ast Environment.
 Require Import ssreflect.
 Require Import ZArith.
 
@@ -40,13 +40,11 @@ Fixpoint string_of_term (t : term) :=
   | tInd i u => "Ind(" ^ string_of_inductive i ^ "," ^ string_of_universe_instance u ^ ")"
   | tConstruct i n u => "Construct(" ^ string_of_inductive i ^ "," ^ string_of_nat n ^ ","
                                     ^ string_of_universe_instance u ^ ")"
-  | tCase (ind, i, r) t p brs =>
-    "Case(" ^ string_of_inductive ind ^ ","
-            ^ string_of_nat i ^ ","
-            ^ string_of_relevance r ^ ","
+  | tCase ci p t brs =>
+    "Case(" ^ string_of_case_info ci ^ ","
+            ^ string_of_predicate string_of_term p ^ ","
             ^ string_of_term t ^ ","
-            ^ string_of_term p ^ ","
-            ^ string_of_list (fun b => string_of_term (snd b)) brs ^ ")"
+            ^ string_of_list (string_of_branch string_of_term) brs ^ ")"
   | tProj (ind, i, k) c =>
     "Proj(" ^ string_of_inductive ind ^ "," ^ string_of_nat i ^ "," ^ string_of_nat k ^ ","
             ^ string_of_term c ^ ")"
@@ -144,9 +142,8 @@ apply (List.firstn decl.(ind_npars)) in types.
               mind_entry_consnames := _;
               mind_entry_lc := _;
             |}.
-    refine (List.map (fun x => fst (fst x)) ind_ctors).
-    refine (List.map (fun x => remove_arity decl.(ind_npars)
-                                                (snd (fst x))) ind_ctors).
+    refine (List.map (fun x => cstr_name x) ind_ctors).
+    refine (List.map (fun x => remove_arity decl.(ind_npars) (cstr_type x)) ind_ctors).
 Defined.
 
 Fixpoint strip_casts t :=
@@ -158,8 +155,9 @@ Fixpoint strip_casts t :=
   | tCast c kind t => strip_casts c
   | tLetIn na b t b' => tLetIn na (strip_casts b) (strip_casts t) (strip_casts b')
   | tCase ind p c brs =>
-    let brs' := List.map (on_snd (strip_casts)) brs in
-    tCase ind (strip_casts p) (strip_casts c) brs'
+    let p' := map_predicate id strip_casts strip_casts p in
+    let brs' := List.map (map_branch strip_casts) brs in    
+    tCase ind p' (strip_casts c) brs'
   | tProj p c => tProj p (strip_casts c)
   | tFix mfix idx =>
     let mfix' := List.map (map_def strip_casts strip_casts) mfix in

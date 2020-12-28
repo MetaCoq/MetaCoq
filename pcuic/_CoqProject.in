@@ -9,6 +9,8 @@ theories/PCUICInduction.v
 theories/PCUICReflect.v
 theories/PCUICLiftSubst.v
 theories/PCUICUnivSubst.v
+theories/PCUICCases.v
+theories/PCUICContextSubst.v
 theories/PCUICTyping.v
 theories/PCUICGlobalEnv.v
 theories/PCUICInversion.v
@@ -17,6 +19,8 @@ theories/PCUICNormal.v
 theories/PCUICNameless.v
 theories/PCUICEquality.v
 theories/PCUICWeakeningEnv.v
+theories/PCUICRename.v
+theories/PCUICInst.v
 theories/PCUICClosed.v
 theories/PCUICWeakening.v
 theories/PCUICUnivSubstitution.v
