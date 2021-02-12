@@ -1,0 +1,8 @@
+-R ../template-coq/theories MetaCoq.Template
+-R ../pcuic/theories MetaCoq.PCUIC
+
+-R theories MetaCoq.Bidirectional
+
+theories/BDEnvironmentTyping.v
+theories/BDMinimalTyping.v
+theories/BDMinimalToPCUIC.v
